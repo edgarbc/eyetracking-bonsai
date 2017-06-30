@@ -1,0 +1,441 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<WorkflowBuilder Version="2.2.2">
+  <Workflow xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:q3="clr-namespace:Bonsai.IO;assembly=Bonsai.System" xmlns:q2="clr-namespace:Bonsai.Scripting;assembly=Bonsai.Scripting" xmlns:q1="clr-namespace:Bonsai.Vision;assembly=Bonsai.Vision" xmlns="https://horizongir.org/bonsai">
+    <Nodes>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:FileCapture">
+          <q1:FileName>C:\Users\Nikolas\Desktop\BL6_0313_s27_e03.avi</q1:FileName>
+          <q1:PlaybackRate>5000</q1:PlaybackRate>
+          <q1:StartPosition>1</q1:StartPosition>
+          <q1:PositionUnits>Frames</q1:PositionUnits>
+          <q1:Loop>false</q1:Loop>
+          <q1:Playing>true</q1:Playing>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:Threshold">
+          <q1:ThresholdValue>18</q1:ThresholdValue>
+          <q1:MaxValue>255</q1:MaxValue>
+          <q1:ThresholdType>BinaryInv</q1:ThresholdType>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:VideoWriter">
+          <q1:FileName>C:\Users\Nikolas\Desktop\EyeTracking_circle.avi</q1:FileName>
+          <q1:Suffix>Timestamp</q1:Suffix>
+          <q1:Buffered>true</q1:Buffered>
+          <q1:Overwrite>false</q1:Overwrite>
+          <q1:FourCC>FMP4</q1:FourCC>
+          <q1:FrameRate>50</q1:FrameRate>
+          <q1:FrameSize>
+            <q1:Width>0</q1:Width>
+            <q1:Height>0</q1:Height>
+          </q1:FrameSize>
+          <q1:ResizeInterpolation>NearestNeighbor</q1:ResizeInterpolation>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:Grayscale" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:BinaryRegionAnalysis" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:LargestBinaryRegion" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:FindContours">
+          <q1:Mode>External</q1:Mode>
+          <q1:Method>ChainApproxNone</q1:Method>
+          <q1:Offset>
+            <q1:X>0</q1:X>
+            <q1:Y>0</q1:Y>
+          </q1:Offset>
+          <q1:MinArea xsi:nil="true" />
+          <q1:MaxArea xsi:nil="true" />
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:VideoWriter">
+          <q1:FileName>C:\Users\Nikolas\Desktop\EyeTracking_thres.avi</q1:FileName>
+          <q1:Suffix>Timestamp</q1:Suffix>
+          <q1:Buffered>true</q1:Buffered>
+          <q1:Overwrite>false</q1:Overwrite>
+          <q1:FourCC>FMP4</q1:FourCC>
+          <q1:FrameRate>50</q1:FrameRate>
+          <q1:FrameSize>
+            <q1:Width>0</q1:Width>
+            <q1:Height>0</q1:Height>
+          </q1:FrameSize>
+          <q1:ResizeInterpolation>NearestNeighbor</q1:ResizeInterpolation>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="q2:PythonTransform">
+        <q2:Script>import clr
+clr.AddReference("OpenCV.Net")
+from OpenCV.Net import *
+from System import Tuple
+
+
+@returns(Tuple[bool,Point2f,float])
+def process(value):
+  if value.Area &gt; 0:
+    ret,center,radius = CV.MinEnclosingCircle(value.Contour)
+    return Tuple.Create(ret,center,float(radius))
+  else:
+    tmp = Point2f()
+    return Tuple.Create(False,tmp,float(0))</q2:Script>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="Zip" />
+      </Expression>
+      <Expression xsi:type="q2:PythonTransform">
+        <q2:Script>import clr
+clr.AddReference("OpenCV.Net")
+from OpenCV.Net import *
+
+color = Scalar.Rgb(255,255,255)
+color1 = Scalar.Rgb(150,150,150)
+thickness = 3
+
+
+@returns(IplImage)
+def process(value):
+  
+  center = value.Item1.Item2
+  radius = value.Item1.Item3
+  image = value.Item2
+  center1 = value.Item3.Item2
+  radius1 = value.Item3.Item3
+
+  output = image.Clone()
+  CV.Circle(output,Point(center),radius,color,1)
+  CV.Circle(output,Point(center1),radius1,color1,1)
+
+  return output
+
+</q2:Script>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:MorphologicalOperator">
+          <q1:Size>
+            <q1:Width>3</q1:Width>
+            <q1:Height>3</q1:Height>
+          </q1:Size>
+          <q1:Anchor>
+            <q1:X>1</q1:X>
+            <q1:Y>1</q1:Y>
+          </q1:Anchor>
+          <q1:Shape>Ellipse</q1:Shape>
+          <q1:Iterations>2</q1:Iterations>
+          <q1:Operation>Close</q1:Operation>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:MaskPolygon">
+          <q1:Regions>
+            <q1:ArrayOfPoint>
+              <q1:Point>
+                <q1:X>176</q1:X>
+                <q1:Y>203</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>154</q1:X>
+                <q1:Y>179</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>157</q1:X>
+                <q1:Y>151</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>168</q1:X>
+                <q1:Y>130</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>212</q1:X>
+                <q1:Y>115</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>253</q1:X>
+                <q1:Y>128</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>266</q1:X>
+                <q1:Y>168</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>245</q1:X>
+                <q1:Y>205</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>216</q1:X>
+                <q1:Y>214</q1:Y>
+              </q1:Point>
+            </q1:ArrayOfPoint>
+          </q1:Regions>
+          <q1:MaskType>ToZero</q1:MaskType>
+          <q1:FillValue>
+            <q1:Val0>255</q1:Val0>
+            <q1:Val1>255</q1:Val1>
+            <q1:Val2>255</q1:Val2>
+            <q1:Val3>255</q1:Val3>
+          </q1:FillValue>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="q3:CsvWriter">
+        <q3:FileName>C:\Users\Nikolas\Desktop\Eye_tracking_circle.csv</q3:FileName>
+        <q3:Append>false</q3:Append>
+        <q3:Overwrite>true</q3:Overwrite>
+        <q3:Suffix>None</q3:Suffix>
+        <q3:IncludeHeader>true</q3:IncludeHeader>
+        <q3:Selector>Source.Item1.Item2.X,Source.Item1.Item2.Y,Source.Item1.Item3,Source.Item2.Item2.X,Source.Item2.Item2.Y,Source.Item2.Item3</q3:Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="Zip" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:Threshold">
+          <q1:ThresholdValue>93</q1:ThresholdValue>
+          <q1:MaxValue>255</q1:MaxValue>
+          <q1:ThresholdType>Binary</q1:ThresholdType>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:MorphologicalOperator">
+          <q1:Size>
+            <q1:Width>3</q1:Width>
+            <q1:Height>3</q1:Height>
+          </q1:Size>
+          <q1:Anchor>
+            <q1:X>1</q1:X>
+            <q1:Y>1</q1:Y>
+          </q1:Anchor>
+          <q1:Shape>Ellipse</q1:Shape>
+          <q1:Iterations>2</q1:Iterations>
+          <q1:Operation>Close</q1:Operation>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="q2:PythonTransform">
+        <q2:Script>import clr
+clr.AddReference("OpenCV.Net")
+from OpenCV.Net import *
+from System import Tuple
+
+
+@returns(Tuple[bool,Point2f,float])
+def process(value):
+  if value.Area &gt; 0:
+    ret,center,radius = CV.MinEnclosingCircle(value.Contour)
+    return Tuple.Create(ret,center,float(radius))
+  else:
+    tmp = Point2f()
+    return Tuple.Create(False,tmp,float(0))</q2:Script>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:LargestBinaryRegion" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:BinaryRegionAnalysis" />
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:FindContours">
+          <q1:Mode>External</q1:Mode>
+          <q1:Method>ChainApproxNone</q1:Method>
+          <q1:Offset>
+            <q1:X>0</q1:X>
+            <q1:Y>0</q1:Y>
+          </q1:Offset>
+          <q1:MinArea xsi:nil="true" />
+          <q1:MaxArea xsi:nil="true" />
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="q1:MaskPolygon">
+          <q1:Regions>
+            <q1:ArrayOfPoint>
+              <q1:Point>
+                <q1:X>176</q1:X>
+                <q1:Y>203</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>154</q1:X>
+                <q1:Y>179</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>157</q1:X>
+                <q1:Y>151</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>168</q1:X>
+                <q1:Y>130</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>212</q1:X>
+                <q1:Y>115</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>253</q1:X>
+                <q1:Y>128</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>266</q1:X>
+                <q1:Y>168</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>245</q1:X>
+                <q1:Y>205</q1:Y>
+              </q1:Point>
+              <q1:Point>
+                <q1:X>216</q1:X>
+                <q1:Y>214</q1:Y>
+              </q1:Point>
+            </q1:ArrayOfPoint>
+          </q1:Regions>
+          <q1:MaskType>ToZero</q1:MaskType>
+          <q1:FillValue>
+            <q1:Val0>0</q1:Val0>
+            <q1:Val1>0</q1:Val1>
+            <q1:Val2>0</q1:Val2>
+            <q1:Val3>0</q1:Val3>
+          </q1:FillValue>
+        </Combinator>
+      </Expression>
+    </Nodes>
+    <Edges>
+      <Edge>
+        <From>0</From>
+        <To>3</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>1</From>
+        <To>11</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>3</From>
+        <To>12</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>3</From>
+        <To>9</To>
+        <Label>Source2</Label>
+      </Edge>
+      <Edge>
+        <From>3</From>
+        <To>21</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>4</From>
+        <To>5</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>5</From>
+        <To>8</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>6</From>
+        <To>4</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>8</From>
+        <To>9</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>8</From>
+        <To>14</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>9</From>
+        <To>10</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>10</From>
+        <To>2</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>11</From>
+        <To>6</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>11</From>
+        <To>7</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>12</From>
+        <To>1</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>14</From>
+        <To>13</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>15</From>
+        <To>16</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>16</From>
+        <To>20</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>17</From>
+        <To>14</To>
+        <Label>Source2</Label>
+      </Edge>
+      <Edge>
+        <From>17</From>
+        <To>9</To>
+        <Label>Source3</Label>
+      </Edge>
+      <Edge>
+        <From>18</From>
+        <To>17</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>19</From>
+        <To>18</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>20</From>
+        <To>19</To>
+        <Label>Source1</Label>
+      </Edge>
+      <Edge>
+        <From>21</From>
+        <To>15</To>
+        <Label>Source1</Label>
+      </Edge>
+    </Edges>
+  </Workflow>
+  <ExtensionTypes>
+    <Type>Bonsai.Vision.FileCapture, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.Threshold, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.VideoWriter, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.Grayscale, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.BinaryRegionAnalysis, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.LargestBinaryRegion, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.FindContours, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Scripting.PythonTransform, Bonsai.Scripting, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Reactive.Zip, Bonsai.Core, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.MorphologicalOperator, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.Vision.MaskPolygon, Bonsai.Vision, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+    <Type>Bonsai.IO.CsvWriter, Bonsai.System, Version=2.2.0.0, Culture=neutral, PublicKeyToken=null</Type>
+  </ExtensionTypes>
+</WorkflowBuilder>
